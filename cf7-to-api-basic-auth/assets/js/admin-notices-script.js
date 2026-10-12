@@ -1,49 +1,93 @@
-jQuery(document).ready(function(){
-    //dismiss admin notice forever
-    qs_cf7_dismiss_admin_note();
+( function () {
+	function qsCf7OnReady( callback ) {
+		if ( 'loading' === document.readyState ) {
+			document.addEventListener( 'DOMContentLoaded', callback );
+			return;
+		}
 
-    check_input_type();
+		callback();
+	}
 
-    toggle_debug_log();
+	function qsCf7Closest( node, selector ) {
+		while ( node && node !== document ) {
+			if ( node.matches && node.matches( selector ) ) {
+				return node;
+			}
 
-    toggle_request_type();
+			node = node.parentNode;
+		}
 
-});
+		return null;
+	}
 
-function toggle_debug_log(){
-    jQuery( document ).on( 'click' , '.debug-log-trigger' , function(){
-        jQuery( '.debug-log-wrap' ).slideToggle();
-    });
-}
-function toggle_request_type(){
-    jQuery( document ).on( 'change' , '#wpcf7-sf-input_type', function(){
-        check_input_type();
-    });
-}
-// Check input type on API Integration TAB
-function check_input_type(){
-    if( jQuery( '#wpcf7-sf-input_type' ).length ){
-        var input_type = jQuery( '#wpcf7-sf-input_type' ).val();
+	function qsCf7CheckInputType() {
+		var select = document.getElementById( 'wpcf7-sf-input_type' );
+		var nodes;
+		var index;
+		var keys;
+		var inputType;
 
-        jQuery( '[data-qsindex]').fadeOut();
+		if ( ! select ) {
+			return;
+		}
 
-        jQuery( '[data-qsindex*="'+input_type+'"]' ).fadeIn();
-    }
-}
+		inputType = select.value;
+		nodes = document.querySelectorAll( '[data-qsindex]' );
 
-function qs_cf7_dismiss_admin_note(){
-    jQuery(".qs-cf7-api-dismiss-notice-forever").click(function(){
+		for ( index = 0; index < nodes.length; index++ ) {
+			keys = ( nodes[ index ].getAttribute( 'data-qsindex' ) || '' ).split( ',' );
+			nodes[ index ].style.display = ( -1 !== keys.indexOf( inputType ) ) ? 'block' : 'none';
+		}
+	}
 
-        var id = jQuery( this ).attr( 'id' );
+	function qsCf7ToggleDebugLog( event ) {
+		var trigger = qsCf7Closest( event.target, '.debug-log-trigger' );
+		var wrap;
 
-        jQuery.ajax({
-            type: "post",
-            url: ajaxurl,
-            data: {
-                action: 'qs_cf7_api_admin_dismiss_notices',
-                id : id
-            },
+		if ( ! trigger ) {
+			return;
+		}
 
-        });
-    });
-}
+		wrap = trigger.parentNode.querySelector( '.debug-log-wrap' );
+
+		if ( ! wrap ) {
+			return;
+		}
+
+		wrap.style.display = ( 'block' === wrap.style.display ) ? 'none' : 'block';
+	}
+
+	function qsCf7DismissAdminNote( event ) {
+		var notice = qsCf7Closest( event.target, '.qs-cf7-api-dismiss-notice-forever' );
+		var body;
+
+		if ( ! notice || ! notice.id || 'undefined' === typeof qsCf7ApiNotices ) {
+			return;
+		}
+
+		body = new window.URLSearchParams();
+		body.set( 'action', 'qs_cf7_api_admin_dismiss_notices' );
+		body.set( 'id', notice.id );
+		body.set( 'nonce', qsCf7ApiNotices.nonce );
+
+		window.fetch( qsCf7ApiNotices.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+			},
+			body: body.toString()
+		} );
+	}
+
+	qsCf7OnReady( function () {
+		qsCf7CheckInputType();
+		document.addEventListener( 'change', function ( event ) {
+			if ( event.target && 'wpcf7-sf-input_type' === event.target.id ) {
+				qsCf7CheckInputType();
+			}
+		} );
+		document.addEventListener( 'click', qsCf7ToggleDebugLog );
+		document.addEventListener( 'click', qsCf7DismissAdminNote );
+	} );
+}() );
